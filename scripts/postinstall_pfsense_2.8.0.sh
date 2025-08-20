@@ -58,90 +58,15 @@ mkdir -p /scripts
 chmod 755 /scripts
 
 ###############################################################################
-# 3.1) gateway.php (adaptado / compatível)
+# 3.1) Baixar gateway.php do repositório
 ###############################################################################
-cat <<'EOF_GATEWAY' > /scripts/gateway.php
-#!/usr/local/bin/php -f
-<?php
-require_once("/etc/inc/globals.inc");
-require_once("certs.inc");
-require_once("gwlb.inc");
-require_once("interfaces.inc");
-require_once("pfsense-utils.inc");
-require_once("services.inc");
-require_once("system.inc");
-require_once("classes/autoload.inc.php");
-
-$op = $argv[1] ?? '';
-
-function getGateways(): array {
-    $a_gateways = return_gateways_array();
-    $dados = [];
-    $i = 0;
-    foreach ($a_gateways as $gw) {
-        $dados[$i]['{#NAME}']      = (string)($gw['name'] ?? '');
-        $dados[$i]['{#GW}']        = (string)($gw['gateway'] ?? '');
-        $dados[$i]['{#DESCR}']     = (string)($gw['descr'] ?? '');
-        $dados[$i]['{#IFALIAS}']   = (string)($gw['friendlyiface'] ?? '');
-        $dados[$i]['{#ISDEFAULT}'] = (string)($gw['isdefaultgw'] ?? '');
-        $dados[$i]['{#INTERFACE}'] = (string)($gw['interface'] ?? '');
-        $i++;
-    }
-    return $dados;
-}
-
-function map_status_value(string $raw): int {
-    switch ($raw) {
-        case 'online': return 1;
-        case 'down': return 0;
-        case 'loss': return 2;
-        case 'delay': return 3;
-        default: return 4;
-    }
-}
-
-function map_substatus_value(string $raw): int {
-    switch ($raw) {
-        case 'none': return 0;
-        case 'highloss': return 1;
-        case 'highdelay': return 2;
-        default: return 3;
-    }
-}
-
-function getStatusGateways(string $nome, string $item) {
-    if ($nome === '') return 'ZBX_NOTSUPPORTED';
-    $gateways_status = return_gateways_status(true) ?: [];
-    if (!isset($gateways_status[$nome])) return 'ZBX_NOTSUPPORTED';
-
-    $gw = $gateways_status[$nome];
-    switch ($item) {
-        case 'status':
-            return map_status_value($gw['status'] ?? '');
-        case 'substatus':
-            return map_substatus_value($gw['substatus'] ?? 'none');
-        case 'delay':
-        case 'stddev':
-            return (float)str_replace('ms','', $gw[$item] ?? '0');
-        case 'loss':
-            return (float)str_replace('%','', $gw[$item] ?? '0');
-        default:
-            return $gw[$item] ?? '';
-    }
-}
-
-switch ($op) {
-    case 'discovery':
-        echo json_encode(['data' => getGateways()], JSON_UNESCAPED_SLASHES) . "\n";
-        break;
-    case 'status':
-        echo getStatusGateways($argv[2] ?? '', $argv[3] ?? '') . "\n";
-        break;
-    default:
-        fwrite(STDERR, "Uso: gateway.php discovery | status <NOME> <item>\n");
-        exit(1);
-}
-EOF_GATEWAY
+GATEWAY_URL="https://raw.githubusercontent.com/thiagomassensini/pfsense-monitoring-toolkit/main/scripts/gateway.php"
+echo "[INFO] Baixando gateway.php" 1>&2
+if command -v curl >/dev/null 2>&1; then
+    curl -fSL -o /scripts/gateway.php "$GATEWAY_URL" || { echo "[ERRO] Falha download gateway.php" 1>&2; exit 2; }
+else
+    fetch -o /scripts/gateway.php "$GATEWAY_URL" || { echo "[ERRO] Falha download gateway.php (fetch)" 1>&2; exit 2; }
+fi
 chmod +x /scripts/gateway.php
 
 ###############################################################################
@@ -204,51 +129,16 @@ else
 fi
 
 ###############################################################################
-# 4) Script de backup /root/pfsense-backup.py
+# 4) Baixar script de backup
 ###############################################################################
-cat <<'EOF_BACKUP' > /root/pfsense-backup.py
-#!/usr/bin/env python3.11
-"""Envia config.xml do pfSense por e-mail (ajustar parâmetros antes de usar)"""
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
-import socket
-import os
-
-SENDER = "remetente@dominio.com.br"
-SENDER_PASSWORD = "SENHA"
-RECEIVER = "destinatario@dominio.com.br"
-SMTP_SERVER = "smtp.dominio.com.br"
-SMTP_PORT = 465
-CONFIG_FILE = "/cf/conf/config.xml"
-
-hostname = socket.gethostname()
-subject = f"{hostname} - Backup Config XML"
-
-def main():
-    if not os.path.isfile(CONFIG_FILE):
-        raise SystemExit(f"Arquivo não encontrado: {CONFIG_FILE}")
-
-    msg = MIMEMultipart()
-    msg["From"] = SENDER
-    msg["To"] = RECEIVER
-    msg["Subject"] = subject
-
-    with open(CONFIG_FILE, "rb") as f:
-        part = MIMEApplication(f.read(), _subtype="xml")
-    part.add_header("Content-Disposition", "attachment", filename="config.xml")
-    msg.attach(part)
-
-    with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as srv:
-        srv.login(SENDER, SENDER_PASSWORD)
-        srv.sendmail(SENDER, RECEIVER, msg.as_string())
-
-    print("Backup enviado com sucesso.")
-
-if __name__ == "__main__":
-    main()
-EOF_BACKUP
-chmod 700 /root/pfsense-backup.py
+BACKUP_URL="https://raw.githubusercontent.com/thiagomassensini/pfsense-monitoring-toolkit/main/scripts/pfsense-backup.py"
+echo "[INFO] Baixando pfsense-backup.py" 1>&2
+if command -v curl >/dev/null 2>&1; then
+    curl -fSL -o /root/pfsense-backup.py "$BACKUP_URL" || { echo "[WARN] Falha download backup.py" 1>&2; }
+else
+    fetch -o /root/pfsense-backup.py "$BACKUP_URL" || { echo "[WARN] Falha download backup.py (fetch)" 1>&2; }
+fi
+chmod 700 /root/pfsense-backup.py || true
 
 echo "" 1>&2
 echo "[OK] Pós-instalação concluída." 1>&2

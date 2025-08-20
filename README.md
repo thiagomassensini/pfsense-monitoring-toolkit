@@ -90,19 +90,23 @@ MIT © 2025 Thiago Motta Massensini. Veja `LICENSE` e `NOTICE.md`.
 Para acelerar a preparação de um novo firewall com monitoramento:
 
 1. Acesse Diagnostics > Command Prompt (Shell) no pfSense recém-instalado 2.8.0.
-2. Rode (ajuste URL se for usar tag específica):
+2. Rode (ajuste para tag específica se desejar estabilidade):
 ```bash
 fetch -o /root/postinstall.sh https://raw.githubusercontent.com/thiagomassensini/pfsense-monitoring-toolkit/main/scripts/postinstall_pfsense_2.8.0.sh
 chmod +x /root/postinstall.sh
 sh /root/postinstall.sh
 ```
-3. Ajuste credenciais de e-mail em `/root/pfsense-backup.py` se quiser envio automático de backup.
-4. Verifique `zabbix_agentd.conf` e `zabbix_agentd.conf.d/pfsense-monitoring.conf` para confirmar UserParameters.
+3. O script fará download destes artefatos diretamente do repositório:
+   - `/scripts/pfsense_zbx.php` (bridge Zabbix)
+   - `/scripts/gateway.php` (discovery / status de gateways)
+   - `/root/pfsense-backup.py` (backup por e-mail – editar variáveis / usar env)
+4. Ajuste credenciais de e-mail via edição do arquivo ou definindo variáveis de ambiente:
+```bash
+setenv PFS_BACKUP_SENDER "remetente@dominio.com.br"
+setenv PFS_BACKUP_PASS   "SENHA"
+setenv PFS_BACKUP_RCPT   "destinatario@dominio.com.br"
+setenv PFS_BACKUP_SMTP   "smtp.dominio.com.br"
+```
+5. Verifique `zabbix_agentd.conf.d/pfsense-monitoring.conf` para confirmar UserParameters.
 
-O script executa:
-- Atualização de índice e instalação de pacotes (Cron, pfBlockerNG-devel, Zabbix Agent/Proxy 6, etc.)
-- Criação dos scripts: `gateway.php` (discovery/status), `pfsense_zbx.php` (bridge baixada do repositório)
-- Configuração de `AllowRoot=1` e UserParameters Zabbix padronizados
-- Script de backup `/root/pfsense-backup.py`
-
-Rollback rápido: restaurar backup original do `zabbix_agentd.conf` gerado (`*.bak.<timestamp>`).
+Rollback rápido: restaurar backup de `zabbix_agentd.conf` (`*.bak.<timestamp>`), remover arquivos em `/scripts` e reiniciar `zabbix_agentd`.
