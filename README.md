@@ -63,7 +63,7 @@ Exemplo rápido:
 php bin/zabbix/pfsense_zabbix_bridge.php test | jq
 ```
 
-ATENÇÃO: Este bridge apenas se inspira conceitualmente em scripts públicos de terceiros, sem reutilização literal de código. Expanda gradualmente substituindo placeholders por lógica real puxando APIs/arquivos do pfSense.  Autoria original de Thiago Motta Massensini.
+ATENÇÃO: Este bridge apenas se inspira conceitualmente em scripts públicos de terceiros, sem reutilização de código. Expanda gradualmente substituindo placeholders por lógica real puxando APIs/arquivos do pfSense.  Autoria original de Thiago Massensini.
 
 ## Formato JSON (exemplo)
 ```json
