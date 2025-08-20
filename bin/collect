@@ -1,0 +1,91 @@
+#!/usr/bin/env php
+<?php
+require __DIR__ . '/../vendor/autoload.php';
+
+use PfSense\Monitoring\Monitor\GatewayLatencyCollector;
+use PfSense\Monitoring\Monitor\SystemResourcesCollector;
+use PfSense\Monitoring\Monitor\StateTableCollector;
+use PfSense\Monitoring\Monitor\SpeedtestCollector;
+use PfSense\Monitoring\Lib\Metric;
+
+$map = [
+    'gateway-latency'   => GatewayLatencyCollector::class,
+    'system-resources'  => SystemResourcesCollector::class,
+    'state-table'       => StateTableCollector::class,
+    'speedtest'         => SpeedtestCollector::class,
+];
+
+$descriptions = [
+    'gateway_latency_ms' => 'Average ICMP latency to target gateway',
+    'system_load1' => 'System load average 1m',
+    'system_load5' => 'System load average 5m',
+    'system_load15' => 'System load average 15m',
+    'memory_used_kb' => 'Used memory in kB',
+    'memory_total_kb' => 'Total memory in kB',
+    'system_uptime_seconds' => 'System uptime in seconds',
+    'pf_state_current_entries' => 'Current number of state table entries',
+    'pf_state_searches_total' => 'Total state table searches',
+    'pf_state_inserts_total' => 'Total state table inserts',
+    'pf_state_removals_total' => 'Total state table removals',
+    'speedtest_download_mbps' => 'Speedtest measured download throughput (Mbps)',
+    'speedtest_upload_mbps' => 'Speedtest measured upload throughput (Mbps)',
+    'speedtest_ping_ms' => 'Speedtest measured latency (ms)'
+];
+
+function usage(array $map): void {
+    fwrite(STDERR, "Usage: collect <collector> [--options]\nAvailable:\n");
+    foreach ($map as $k => $cls) {
+        fwrite(STDERR, "  - $k -> $cls\n");
+    }
+    exit(1);
+}
+
+if ($argc < 2) {
+    usage($map);
+}
+$collectorKey = $argv[1];
+if (!isset($map[$collectorKey])) {
+    usage($map);
+}
+$args = array_slice($argv, 2);
+$options = [];
+foreach ($args as $arg) {
+    if (str_starts_with($arg, '--')) {
+        $parts = explode('=', substr($arg,2), 2);
+        $options[$parts[0]] = $parts[1] ?? true;
+    }
+}
+$format = $options['format'] ?? 'json';
+unset($options['format']);
+
+/** @var Metric $collector */
+$collector = new ($map[$collectorKey])();
+$results = $collector->collect($options);
+$time = time();
+
+if ($format === 'prometheus') {
+    $emitted = [];
+    foreach ($results as $m) {
+        if (isset($m['error'])) { continue; }
+        if (!isset($emitted[$m['metric']])) {
+            $desc = $descriptions[$m['metric']] ?? 'Metric';
+            echo '# HELP '.$m['metric'].' '.preg_replace('/\s+/', ' ', $desc)."\n";
+            echo '# TYPE '.$m['metric'].' gauge' ."\n";
+            $emitted[$m['metric']] = true;
+        }
+        $labels = '';
+        if (!empty($m['labels'])) {
+            $pairs = [];
+            foreach ($m['labels'] as $lk=>$lv) {
+                $pairs[] = $lk.'="'.addslashes($lv).'"';
+            }
+            $labels = '{'.implode(',', $pairs).'}';
+        }
+        echo $m['metric'].$labels.' '.$m['value']."\n";
+    }
+    exit(0);
+}
+
+foreach ($results as $m) {
+    echo json_encode($m, JSON_UNESCAPED_SLASHES)."\n";
+}
