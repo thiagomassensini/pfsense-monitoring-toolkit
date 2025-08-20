@@ -6,4 +6,6 @@ A organização conceitual e alguns nomes de métricas podem ter sido inspirados
 
 Nenhum conteúdo textual foi copiado literalmente de terceiros; todo o conteúdo foi reescrito e/ou expandido.
 
+O script `bin/zabbix/pfsense_zabbix_bridge.php` fornece compatibilidade conceitual com comandos esperados por certos templates Zabbix, mantendo autoria original (Thiago Motta Massensini, 2025) e servindo apenas como camada de transição.
+
 Consulte `LICENSE` para detalhes de licenciamento (MIT).

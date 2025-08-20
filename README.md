@@ -21,6 +21,7 @@ src/
   Lib/        Utilidades (Logger, Exec, Format, Validation)
   Monitor/    Coletores (GatewayLatency, SystemResources, ...)
 bin/          Wrappers executáveis (collect)
+  zabbix/     Bridge de compatibilidade para template Zabbix
 scripts/      Manutenção/validação
 tests/        Testes PHPUnit
 ```
@@ -43,6 +44,27 @@ php bin/collect speedtest --ttl 3600 --format json
 php bin/collect speedtest --format prometheus
 ```
 
+## Bridge para Template Zabbix (Experimental)
+Para facilitar migração gradual de um ambiente que já utiliza um template Zabbix legado, existe o script de bridge:
+
+```bash
+php bin/zabbix/pfsense_zabbix_bridge.php <comando> [args]
+```
+
+Objetivo: aceitar comandos esperados (ex: `discovery`, `gw_value`, `service_value`, `if_speedtest_value`, etc.) e devolver saídas compatíveis mínimas, permitindo que itens já definidos no Zabbix não quebrem enquanto a implementação nativa evolui.
+
+Status atual:
+- Implementado: `if_speedtest_value`, `system (uptime/script_version)`, `state_table` (helper extra), `file_exists`, `test`
+- Placeholders retornando neutro/vazio: `discovery` (todas as seções), `gw_value`, `gw_status`, `service_value`, `carp_status`, `smart_status`, `temperature`
+- Próximos passos: adicionar discovery real de interfaces/gateways e serviços usando coletores dedicados
+
+Exemplo rápido:
+```bash
+php bin/zabbix/pfsense_zabbix_bridge.php test | jq
+```
+
+ATENÇÃO: Este bridge é autoria original de Thiago Motta Massensini (2025) e apenas se inspira conceitualmente em scripts públicos de terceiros, sem reutilização literal de código. Expanda gradualmente substituindo placeholders por lógica real puxando APIs/arquivos do pfSense.
+
 ## Formato JSON (exemplo)
 ```json
 {"metric":"gateway_latency_ms","value":12.4,"timestamp":1692480000,"labels":{"gateway":"WAN_DHCP"}}
@@ -59,6 +81,7 @@ php bin/collect speedtest --format prometheus
 - [ ] Script: push para Pushgateway
 - [ ] Coletor: Interface throughput
 - [ ] Coletor: DNS resolver health
+- [ ] Zabbix bridge: discovery real de gateways/interfaces/serviços
 
 ## Licença
 MIT © 2025 Thiago Motta Massensini. Veja `LICENSE` e `NOTICE.md`.
