@@ -85,3 +85,24 @@ ATENÇÃO: Este bridge é autoria original de Thiago Motta Massensini (2025) e a
 
 ## Licença
 MIT © 2025 Thiago Motta Massensini. Veja `LICENSE` e `NOTICE.md`.
+
+## Automação Pós-Instalação (pfSense 2.8.0)
+Para acelerar a preparação de um novo firewall com monitoramento:
+
+1. Acesse Diagnostics > Command Prompt (Shell) no pfSense recém-instalado 2.8.0.
+2. Rode (ajuste URL se for usar tag específica):
+```bash
+fetch -o /root/postinstall.sh https://raw.githubusercontent.com/thiagomassensini/pfsense-monitoring-toolkit/main/scripts/postinstall_pfsense_2.8.0.sh
+chmod +x /root/postinstall.sh
+sh /root/postinstall.sh
+```
+3. Ajuste credenciais de e-mail em `/root/pfsense-backup.py` se quiser envio automático de backup.
+4. Verifique `zabbix_agentd.conf` e `zabbix_agentd.conf.d/pfsense-monitoring.conf` para confirmar UserParameters.
+
+O script executa:
+- Atualização de índice e instalação de pacotes (Cron, pfBlockerNG-devel, Zabbix Agent/Proxy 6, etc.)
+- Criação dos scripts: `gateway.php` (discovery/status), `pfsense_zbx.php` (bridge baixada do repositório)
+- Configuração de `AllowRoot=1` e UserParameters Zabbix padronizados
+- Script de backup `/root/pfsense-backup.py`
+
+Rollback rápido: restaurar backup original do `zabbix_agentd.conf` gerado (`*.bak.<timestamp>`).

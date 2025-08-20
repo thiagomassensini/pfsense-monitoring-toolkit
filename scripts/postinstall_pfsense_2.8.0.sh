@@ -22,7 +22,7 @@
 # Uso sugerido: Executar via Diagnostics > Command Prompt (Shell) após instalação.
 ###############################################################################
 
-set -e
+set -eu
 
 echo "[INFO] Iniciando pós-instalação para pfSense 2.8.0" 1>&2
 
@@ -160,6 +160,48 @@ else
   echo "[ERRO] Nem curl nem fetch disponíveis." 1>&2; exit 2
 fi
 chmod +x /scripts/pfsense_zbx.php
+
+###############################################################################
+# 3.3) Configuração Zabbix Agent (UserParameters + AllowRoot)
+###############################################################################
+ZBX_AGENT_CONF="/usr/local/etc/zabbix_agentd.conf"
+ZBX_INCLUDE_DIR="/usr/local/etc/zabbix_agentd.conf.d"
+ZBX_MON_CONF="$ZBX_INCLUDE_DIR/pfsense-monitoring.conf"
+
+echo "[INFO] Configurando Zabbix Agent" 1>&2
+mkdir -p "$ZBX_INCLUDE_DIR"
+
+# Garante AllowRoot=1 (necessário para vários itens)
+if ! grep -q '^AllowRoot=1' "$ZBX_AGENT_CONF" 2>/dev/null; then
+    cp "$ZBX_AGENT_CONF" "$ZBX_AGENT_CONF.bak.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+    echo 'AllowRoot=1' >> "$ZBX_AGENT_CONF"
+    echo "[INFO] Adicionado AllowRoot=1 em $ZBX_AGENT_CONF" 1>&2
+fi
+
+cat > "$ZBX_MON_CONF" <<'EOF_ZBX'
+# Arquivo gerado automaticamente pelo postinstall_pfsense_2.8.0.sh
+# Autoria: Thiago Motta Massensini (2025)
+
+# Descobertas & valores gerais via bridge
+UserParameter=pfsense.discovery[*],/usr/local/bin/php /scripts/pfsense_zbx.php discovery $1
+UserParameter=pfsense.value[*],/usr/local/bin/php /scripts/pfsense_zbx.php $1 $2 $3
+
+# Gateways (script dedicado)
+UserParameter=pfsense.gateway.discovery,/usr/local/bin/php /scripts/gateway.php discovery
+UserParameter=pfsense.gateway.status[*],/usr/local/bin/php /scripts/gateway.php status $1 $2
+
+# Exemplo adicional: state table (helper extra do bridge)
+UserParameter=pfsense.statetable.json,/usr/local/bin/php /scripts/pfsense_zbx.php state_table
+EOF_ZBX
+
+echo "[INFO] UserParameters gravados em $ZBX_MON_CONF" 1>&2
+
+# Reinicia agente se presente
+if command -v service >/dev/null 2>&1 && service zabbix_agentd onestatus >/dev/null 2>&1; then
+    service zabbix_agentd restart || echo "[WARN] Falha ao reiniciar zabbix_agentd" 1>&2
+else
+    echo "[INFO] zabbix_agentd não ativo ainda (será iniciado após reboot ou manualmente)." 1>&2
+fi
 
 ###############################################################################
 # 4) Script de backup /root/pfsense-backup.py
